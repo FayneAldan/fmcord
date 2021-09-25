@@ -1,7 +1,7 @@
 # fmcord
 
 **Display your current Last.FM song on Discord using the RPC API:**
-![N|Solid](https://i.imgur.com/MXj59IH.png)
+![](assets/screenshot.png)
 
 Based on [fmcord by 69](https://github.com/69/fmcord)
 
