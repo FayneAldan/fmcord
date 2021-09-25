@@ -27,12 +27,10 @@ trackStream.on("nowPlaying", (track) => {
 
   //console.log("nowPlaying", track);
   if (config.detailedLog) {
-    console.log(`
-▶️ Now Playing
+    console.log(`▶️ Now Playing
   🎵 ${song}
   👤 ${artist}
-  💿 ${album}
-`);
+  💿 ${album}`);
   } else console.log(`▶️ Now playing: ${song}`);
 
   const songEmoji =
