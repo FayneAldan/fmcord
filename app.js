@@ -1,55 +1,70 @@
-const DiscordRPC = require('discord-rpc'),
-      { LastFmNode } = require('lastfm'),
-      fs = require('fs'),
-      log = require("fancy-log");
+const DiscordRPC = require("discord-rpc"),
+  { LastFmNode } = require("lastfm"),
+  fs = require("fs");
 
-if(fs.existsSync('keys.json')) {
-  fs.renameSync('keys.json', 'config.json');
-  log.info('Renamed keys.json to config.json');
-}
-
-if(!fs.existsSync('config.json')) {
-  fs.copyFileSync('config.example.json', 'config.json')
-  log.info('Created config.json. Please enter your username in the value of `lastFmUsername`.');
+if (!fs.existsSync("config.json")) {
+  fs.copyFileSync("config.example.json", "config.json");
+  log.info(
+    "Created config.json. Please enter your username in the value of `lastFmUsername`."
+  );
   return;
 }
 
-const {
-  appClientID,
-  imageKeys,
-  rpcTransportType: transport,
-  lastFmKey,
-  lastFmUsername,
-} = require('./config');
+const clientId = "740140397162135563";
+const config = require("./config");
+const rpc = new DiscordRPC.Client({ transport: "ipc" });
+const lastFm = new LastFmNode({
+  api_key: "52ffa34ebbd200da17da5a6c3aef1b2e",
+  useragent: "github.com/FayneAldan/fmcord",
+});
+const trackStream = lastFm.stream(config.lastFmUsername, { extended: true });
 
-const rpc = new DiscordRPC.Client({ transport }),
-      clientId = appClientID,
-      lastFm = new LastFmNode({ api_key: lastFmKey, useragent: 'fmcord v1.0.0' });
+trackStream.on("nowPlaying", (track) => {
+  const song = track.name;
+  const album = track.album["#text"];
+  const artist = track.artist.name;
+  const loved = track.loved === "1";
 
-if(!lastFmUsername) {
-  log.error("Your last.fm username isn't set! Please set it in your config.json file.");
-  process.exit(1);
-}
+  //console.log("nowPlaying", track);
+  if (config.detailedLog) {
+    console.log(`
+▶️ Now Playing
+  🎵 ${song}
+  👤 ${artist}
+  💿 ${album}
+`);
+  } else console.log(`▶️ Now playing: ${song}`);
 
-const trackStream = lastFm.stream(lastFmUsername);
+  const songEmoji =
+    loved && config.lovedEmoji ? "❤️ " : config.useEmojis ? "🎵 " : "";
+  const artistEmoji = config.useEmojis ? "👤 " : "";
+  const albumEmoji = config.useEmojis ? "💿 " : "";
+  const smallIcon = loved && config.lovedIcon ? "love" : "play";
+  const asName = config.shareUsername ? ` as ${config.lastFmUsername}` : "";
 
-trackStream.on('nowPlaying', song => {
-  if(!song) return;
   rpc.setActivity({
-    details: `🎵  ${song.name}`,
-    state: `👤  ${song.artist["#text"]}`,
-    largeImageKey: imageKeys.large,
-    smallImageKey: imageKeys.small,
-    smallImageText: `💿 ${song.album["#text"]}`,
-    instance: false,
+    details: songEmoji + song,
+    state: artistEmoji + artist,
+    largeImageKey: "lastfm",
+    smallImageKey: smallIcon,
+    largeImageText: `Scrobbling on last.fm${asName}`,
+    smallImageText: albumEmoji + album,
   });
-
-  log.info(`Updated song to: ${song.artist["#text"]} - ${song.name}`);
 });
 
-rpc.on('ready', () => {
-  log(`Connected to Discord! (${clientId})`);
+trackStream.on("stoppedPlaying", () => {
+  console.log("⏹️ Stopped playing");
+  rpc.clearActivity();
+});
+
+trackStream.on("error", (error) => {
+  console.error("⚠️ LastFM Error", error);
+});
+
+rpc.on("ready", () => {
+  const { username } = rpc.user;
+  console.log(`✅ Connected: ${username}`);
   trackStream.start();
 });
 
-rpc.login({ clientId }).catch(log.error);
+rpc.login({ clientId }).catch(console.warn);
